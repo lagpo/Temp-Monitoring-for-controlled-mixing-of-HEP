@@ -1,0 +1,32 @@
+#include <built_in.h>
+
+void I2C_Scan() {
+    unsigned char address;
+    unsigned char response;
+
+    for (address = 1; address < 127; address++) {
+        I2C1_Start();                 // Start I2C communication
+        response = I2C1_Wr(address << 1); // Send address (shifted left for R/W bit)
+        I2C1_Stop();                  // Stop I2C communication
+
+        if (response == 0) {  // Device ACK received
+            PORTC.F0 = 1;  // Turn ON LED if device is found
+            Delay_ms(500);
+            PORTC.F0 = 0;
+            Delay_ms(500);
+        }
+    }
+}
+
+void main() {
+    TRISC = 0x00;    // Set PORTC as output (for LED)
+    PORTC = 0x00;    // Initialize PORTC LOW
+
+    I2C1_Init(100000);  // Initialize I2C at 100kHz
+    Delay_ms(100);
+
+    while(1) {
+        I2C_Scan();  // Scan for I2C devices
+        Delay_ms(2000);  // Wait before next scan
+    }
+}
