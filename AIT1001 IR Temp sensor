@@ -1,0 +1,51 @@
+// MikroC code for Temperature Calculation using AIT1001 IR Temperature Sensor with PWM Output
+
+// Microcontroller: PIC16F877A
+// PWM Frequency: 100 Hz (AIT1001 Datasheet)
+// Compiler: MikroC PRO for PIC
+
+#define PWM_PIN PORTC.F2  // PWM input pin (Capture Module)
+
+unsigned long duty_cycle;
+float temp;
+
+void PWM_Init() {
+    TRISC.F2 = 1;  // Set RC2 as input for PWM
+    CCP1CON = 0x05; // Configure CCP1 in Capture mode on every rising edge
+    T1CON = 0x01;   // Timer1 ON with 1:1 Prescaler
+    TMR1H = 0;
+    TMR1L = 0;
+    PIE1.CCP1IE = 1; // Enable CCP1 Interrupt
+    INTCON.PEIE = 1;
+    INTCON.GIE = 1;
+}
+
+void interrupt() {
+    if (PIR1.CCP1IF) {
+        PIR1.CCP1IF = 0;  // Clear interrupt flag
+        duty_cycle = (CCPR1H << 8) | CCPR1L;  // Read captured value
+        TMR1H = 0;  // Reset Timer1
+        TMR1L = 0;
+    }
+}
+
+float Calculate_Temperature(unsigned long duty_cycle) {
+    float duty_percent = (float)duty_cycle / 65535.0 * 100.0;  // Convert to percentage
+    temp = (160.0 * duty_percent / 100.0) - 60.0;  // AIT1001 PWM to Temperature Conversion
+    return temp;
+}
+
+void main() {
+    PWM_Init();
+    UART1_Init(9600);  // Initialize UART for debugging
+    Delay_ms(1000);
+    UART1_Write_Text("Temperature Measurement\r\n");
+
+    while (1) {
+        temp = Calculate_Temperature(duty_cycle);
+        UART1_Write_Text("Temperature: ");
+        UART1_Write_Float(temp);
+        UART1_Write_Text(" C\r\n");
+        Delay_ms(1000);
+    }
+}
